@@ -5,6 +5,7 @@
             "rwx-storageclass": "ocs-external-storagecluster-cephfs",
             "rwo-storageclass": "ocs-external-storagecluster-cephfs",
             "use-letsencrypt-certs": "true",
+            "mas-catalog-version": "v9-241107-amd64",
             "tlscert-secret": "user-serving-cert-000",
             "tlscert-namespace": "openshift-kube-apiserver",
             "mas-install-core": "true"
