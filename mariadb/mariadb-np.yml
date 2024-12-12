@@ -1,0 +1,45 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: np
+  namespace: mariadb
+parameters:
+  - name: MAS_INSTANCE_ID 
+objects:
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    name: mariadb-instance
+    namespace: mariadb
+  spec:
+    podSelector:
+      matchLabels:
+        app: mariadb-instance
+        component: data-science-pipelines
+    ingress:
+      - ports:
+          - protocol: TCP
+            port: 3306
+        from:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: data-science-pipelines-operator
+            namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: opendatahub
+          - podSelector:
+              matchLabels:
+                app: ds-pipeline-instance
+                component: data-science-pipelines
+            namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: "mas-${MAS_INSTANCE_ID}-aibroker"
+          - podSelector:
+              matchLabels:
+                app: ds-pipeline-metadata-grpc-instance
+                component: data-science-pipelines
+            namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: "mas-${MAS_INSTANCE_ID}-aibroker"
+    policyTypes:
+      - Ingress

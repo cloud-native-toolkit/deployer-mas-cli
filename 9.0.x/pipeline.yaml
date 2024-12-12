@@ -192,7 +192,7 @@ spec:
           - name: ibm-entitlement-key
         steps:
           - name: copy-entitlement-key-to-ws
-            image: quay.io/openshift/origin-cli:4.10
+            image: quay.io/openshift/origin-cli:4.15
             script: |
               #!/usr/bin/env bash
               if [ $(params.ibm-entitlement-key) == "false" ]; then
@@ -227,7 +227,7 @@ spec:
           - name: LICENSE_FILE_SECRET_NAME
         steps:
           - name: write-maximo-licensefile
-            image: quay.io/openshift/origin-cli:4.12
+            image: quay.io/openshift/origin-cli:4.15
             script: |
               #!/usr/bin/env bash
 
@@ -355,7 +355,7 @@ spec:
           - name: mas-install-core
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               # extract license id from license.dat
@@ -387,7 +387,7 @@ spec:
 
               #check ai broker public cert
               #cat ansible-devops/roles/suite_certs/defaults/main.yml
-              wget -qO - "https://raw.githubusercontent.com/zxue/ansible-devops/master/ibm/mas_devops/roles/suite_certs/defaults/main.yml" > ansible-devops/roles/suite_certs/defaults/main.yml
+              #wget -qO - "https://raw.githubusercontent.com/zxue/ansible-devops/master/ibm/mas_devops/roles/suite_certs/defaults/main.yml" > ansible-devops/roles/suite_certs/defaults/main.yml
               #cat ansible-devops/roles/suite_certs/defaults/main.yml
 
               ansible-playbook ibm.mas_devops.oneclick_core
@@ -434,7 +434,7 @@ spec:
           - name: rwo-storageclass
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               export MAS_INSTANCE_ID=$(params.mas-instance-id)
@@ -523,7 +523,7 @@ spec:
           - name: rwo-storageclass
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               export MAS_INSTANCE_ID=$(params.mas-instance-id)
@@ -606,7 +606,7 @@ spec:
           - name: cpd-install-spss
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               
@@ -670,7 +670,7 @@ spec:
           - name: cpd-install-spss
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               
@@ -737,7 +737,7 @@ spec:
           - name: cpd-install-spss
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               
@@ -802,7 +802,7 @@ spec:
           - name: cpd-install-spss
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               
@@ -870,7 +870,7 @@ spec:
           - name: cpd-install-spss
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               
@@ -943,7 +943,7 @@ spec:
           - name: rwo-storageclass
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               export MAS_INSTANCE_ID=$(params.mas-instance-id)
@@ -1044,7 +1044,7 @@ spec:
           - name: uds-lastname
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               export MAS_INSTANCE_ID=$(params.mas-instance-id)
@@ -1100,7 +1100,7 @@ spec:
           - name: rwo-storageclass
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               export MAS_INSTANCE_ID=$(params.mas-instance-id)
@@ -1146,7 +1146,7 @@ spec:
           - name: mas-channel
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               export MAS_INSTANCE_ID=$(params.mas-instance-id)
@@ -1220,7 +1220,7 @@ spec:
           - name: cpd-admin-password
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
               
@@ -1285,6 +1285,8 @@ spec:
           value: "$(params.artifactory_username)"
         - name: artifactory_token
           value: "$(params.artifactory_token)"
+        - name: rwo-storageclass
+          value: "$(params.rwo-storageclass)"
         - name: mas_airbroker_watsonxai_apikey
           value: "$(params.mas_airbroker_watsonxai_apikey)"
         - name: mas_airbroker_watsonxai_url
@@ -1305,6 +1307,7 @@ spec:
           - name: uds-email
           - name: artifactory_username
           - name: artifactory_token
+          - name: rwo-storageclass
           - name: mas_airbroker_watsonxai_apikey
           - name: mas_airbroker_watsonxai_url
           - name: mas_airbroker_watsonxai_project_id
@@ -1312,7 +1315,7 @@ spec:
 
         steps:
           - name: run-mas-cli
-            image: quay.io/ibmmas/cli:latest
+            image: quay.io/ibmmas/cli:11.12.0
             script: |
               #!/usr/bin/env bash
 
@@ -1323,8 +1326,10 @@ spec:
               # Update namespace "mas-inst1-aibroker" in maridb-np.yml 
 
               # download files form github repo or other location
-              export MINIO_FOLDER="https://raw.githubusercontent.com/zxue/deploy-maximo-aibroker/main/minio/"
-              export MARIADB_FOLDER="https://raw.githubusercontent.com/zxue/deploy-maximo-aibroker/main/mariadb/"
+              #export MINIO_FOLDER="https://raw.githubusercontent.com/zxue/deploy-maximo-aibroker/main/minio/"
+              #export MARIADB_FOLDER="https://raw.githubusercontent.com/zxue/deploy-maximo-aibroker/main/mariadb/"
+              export MINIO_FOLDER="https://raw.githubusercontent.com/cloud-native-toolkit/deployer-mas-cli/main/minio/"
+              export MARIADB_FOLDER="https://raw.githubusercontent.com/cloud-native-toolkit/deployer-mas-cli/main/mariadb/"
 
               wget -qO - "$MINIO_FOLDER"kustomization.yaml > $(workspaces.ws.path)/masconfig/minio/kustomization.yaml
               wget -qO - "$MINIO_FOLDER"minio.yaml > $(workspaces.ws.path)/masconfig/minio/minio.yaml
@@ -1339,6 +1344,10 @@ spec:
               wget -qO - "$MARIADB_FOLDER"mariadb-secret.yml > $(workspaces.ws.path)/masconfig/mariadb/mariadb-secret.yml
               wget -qO - "$MARIADB_FOLDER"mariadb-service.yml > $(workspaces.ws.path)/masconfig/mariadb/mariadb-service.yml
 
+              # config env variables to mariadb yml files
+              export MAS_INSTANCE_ID=$(params.mas-instance-id)
+              export MAS_AIBROKER_STORAGE_CLASS=$(params.rwo-storageclass)
+              
               # run oc command lines to create minio storage and mariadb
               cd  $(workspaces.ws.path)/masconfig
               chmod 777 $(workspaces.ws.path)/masconfig/mariadb/mariadb-deploy.sh
@@ -1352,7 +1361,7 @@ spec:
               export MAS_ICR_CPOPEN="docker-na-public.artifactory.swg-devops.com/wiotp-docker-local/cpopen"
 
               #MAS
-              export MAS_INSTANCE_ID=$(params.mas-instance-id)
+              #export MAS_INSTANCE_ID=$(params.mas-instance-id)
               export MAS_ENTITLEMENT_USERNAME=$(params.uds-email)
               export MAS_ENTITLEMENT_KEY=$(cat $(workspaces.ws.path)/ek.dat)
 
@@ -1374,7 +1383,8 @@ spec:
               export MAS_AIBROKER_WATSONXAI_PROJECT_ID=$(params.mas_airbroker_watsonxai_project_id)
               export MAS_AIBROKER_CHANNEL=$(params.mas_aibroker_channel)
 
-              # database
+              # mariadb database
+              #export MAS_AIBROKER_STORAGE_CLASS=$(params.rwo-storageclass)
               export MAS_AIBROKER_DB_HOST="mariadb-instance.mariadb.svc.cluster.local"
               export MAS_AIBROKER_DB_PORT="3306"
               export MAS_AIBROKER_DB_USER="mariadb"
