@@ -6,7 +6,7 @@ metadata:
   namespace: default
 spec:
   pipelineRef:
-      name: mas-devops-deploy-ab
+      name: mas-devops-deploy
   params:
     - name: uds-email
       value: "dev-techzone@ibm.com"
