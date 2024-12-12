@@ -6,7 +6,7 @@ metadata:
   namespace: default
 spec:
   pipelineRef:
-      name: mas-devops-deploy
+      name: mas-devops-deploy-ab
   params:
     - name: uds-email
       value: "dev-techzone@ibm.com"
@@ -17,10 +17,14 @@ spec:
     - name: use-letsencrypt-certs
       value: "true"
     #lets encrypt secret location and namespace
+    # - name: tlscert-secret
+    #   value: "user-serving-cert-000"
+    # - name: tlscert-namespace
+    #   value: "openshift-kube-apiserver"
     - name: tlscert-secret
-      value: "user-serving-cert-000"
+      value: "letsencrypt-certs"
     - name: tlscert-namespace
-      value: "openshift-kube-apiserver"
+      value: "openshift-ingress"
     - name: ibm-entitlement-key
       value: "false"
     #mas-license-secret
@@ -34,7 +38,9 @@ spec:
 
     # install MAS Core. This task may be skipped once done successfully
     - name: mas-install-core
-      value: "true"
+      value: "false"
+    - name: mas-instance-id
+      value: "inst1"
 
     # install MAS Manage, depending on MAS Core, optionally CP4D/DB2
     - name: mas-install-manage
@@ -72,9 +78,9 @@ spec:
     - name: cpd-admin-password
       value: "xxx"
 
-    # install MAS AI Broker, depending on MAS Core, Manage, IoT and Monitor
+    # install MAS AI Broker, depending on MAS Core. Check/update sc in pvc.yml, ns in np.yml
     - name: mas-install-aibroker
-      value: "false"
+      value: "true"
     - name: artifactory_username
       value: "xxx"
     - name: artifactory_token

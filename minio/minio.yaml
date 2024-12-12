@@ -1,0 +1,107 @@
+# https://min.io/docs/minio/kubernetes/openshift/index.html
+# https://github.com/kubernetes/examples/tree/master/staging/storage/minio
+---
+# Deploys a new Namespace for the MinIO Pod
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+spec:
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        # Label is used as selector in the service.
+        app: minio
+    spec:
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: minio-pvc
+      containers:
+        - name: minio
+          image: quay.io/minio/minio:latest
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - minio server /data --console-address :9090
+          env:
+            - name: MINIO_ROOT_USER
+              value: minio123
+            - name: MINIO_ROOT_PASSWORD
+              value: minio123
+          volumeMounts:
+            - mountPath: /data
+              name: storage
+---
+# apiVersion: v1
+# kind: Pod
+# metadata:
+#   labels:
+#     app: minio
+#   name: minio
+#   namespace: minio
+# spec:
+#   containers:
+#   - name: minio
+#     image: quay.io/minio/minio:latest
+#     command:
+#       - /bin/bash
+#       - -c
+#     args:
+#      - minio server /data --console-address :9090
+#     volumeMounts:
+#       - mountPath: /data
+#         name: storage
+#     env:
+#       - name: MINIO_ROOT_USER
+#         value: minio123
+#       - name: MINIO_ROOT_PASSWORD
+#         value: minio123
+#   volumes:
+#     - name: storage
+#       persistentVolumeClaim:
+#         claimName: minio-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: minio
+spec:
+  type: ClusterIP
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+      protocol: TCP
+    - name: console
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+  selector:
+    app: minio
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: minio-route
+  namespace: minio
+spec:
+  to:
+    kind: Service
+    name: minio-service
+    weight: 100
+  port:
+    targetPort: 9090
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: None
