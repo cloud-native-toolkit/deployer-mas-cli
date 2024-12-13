@@ -2,7 +2,7 @@
 apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
-  name: mas-devops-deploy-test
+  name: mas-devops-deploy
   namespace: default
 spec:
   workspaces:
