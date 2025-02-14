@@ -21,7 +21,7 @@ spec:
     - name: mas-cp4d-version
       type: string
       description: "Supported CP4D version for MAS on OpenShift"
-      default: "4.8.0"
+      default: "5.0.0"
     - name: mas-install-manage
       type: string
       description: "controls whether Maximo Manage and CP4D is installed"
@@ -88,7 +88,7 @@ spec:
     - name: "mas-catalog-version"
       description: "Maximo operator catalog version. Check https://ibm-mas.github.io/cli/catalogs/"
       type: string
-      default: v9-241205-amd64
+      default: v9-250206-amd64
     - name: mas-channel
       description: "channel to subscribe to"
       type: string
@@ -101,6 +101,10 @@ spec:
       type: string
       description: "Install SPSS in the cluster"
       default: "true"
+    - name: gpu_driver_version
+      type: string
+      description: "GPU driver version for MVI"
+      default: "565.57.01"      
     - name: cpd-wsl-projectname
       type: string
       description: "Watson Studio Project Name"
@@ -163,42 +167,11 @@ spec:
             # get and echo the pipeline the mas installer created
             oc patch configmap/pipeline-output -p '{"data":{"Status":"Deployment Pipeline completed to install mas core."}}'
   tasks:
-    - name: check-container-registry
-      taskRef:
-        kind: Task
-        name: ibm-pak
-      params:
-        - name: SCRIPT
-          value: |
-            status=$(oc get configs.imageregistry.operator.openshift.io cluster -o jsonpath='{.status.conditions[?(@.type=="Available")].reason}')
-
-            TIMEOUT_SECONDS=300
-            while [[ "$status" != "Ready" ]] && [[ $SECONDS -lt $TIMEOUT_SECONDS ]]; do
-              echo "OpenShift Container Registry is not ready. Current status: $status"
-
-              # Apply the patch commands
-              oc patch config.imageregistry.operator.openshift.io/cluster --type=merge -p '{"spec":{"storage":{"emptyDir":{}}}}'
-              oc patch config.imageregistry.operator.openshift.io/cluster --type=merge -p '{"spec":{"managementState":"Managed"}}'
-
-              # Check status after a short delay to avoid overwhelming the server
-              sleep 10
-
-              # Update status 
-              status=$(oc get configs.imageregistry.operator.openshift.io cluster -o jsonpath='{.status.conditions[?(@.type=="Available")].reason}')
-            done
-
-            if [[ "$status" == "Ready" ]]; then
-              echo "OpenShift Container Registry is ready"
-              exit 0
-            else
-              echo "OpenShift Container Registry failed to become ready after $TIMEOUT_SECONDS seconds." >&2
-              exit 1
-            fi
     - name: get-ibm-entitlement-key
-      when:
-        - input: "$(params.ibm-entitlement-key)"
-          operator: in
-          values: ["false"]
+      # when:
+      #   - input: "$(params.ibm-entitlement-key)"
+      #     operator: in
+      #     values: ["false"]
       taskRef:
         name: ibmcloud-secrets-manager-get
         kind: Task
@@ -209,6 +182,7 @@ spec:
         - name: SECRETS_MANAGER_ENDPOINT_URL
           value: >-
             https://afa20521-cd75-4864-843f-e59fd0ffd49d.us-south.secrets-manager.appdomain.cloud
+
     - name: set-ibm-entitlement-key
       runAfter:
         - get-ibm-entitlement-key
@@ -223,7 +197,7 @@ spec:
           - name: ibm-entitlement-key
         steps:
           - name: copy-entitlement-key-to-ws
-            image: quay.io/openshift/origin-cli:4.10
+            image: quay.io/openshift/origin-cli:latest
             script: |
               #!/usr/bin/env bash
               if [ $(params.ibm-entitlement-key) == "false" ]; then
@@ -237,13 +211,14 @@ spec:
               fi
               echo "ek.dat created" 
               exit
+
     - name: get-maximo-licensefile
       retries: 2
       workspaces:
         - name: ws
       params:
         - name: KEY_ID
-          value: 2d52b201-117a-35ea-71f0-9781a93fbed4
+          value: 5ef410aa-bd48-3339-0096-d2b11e91cb57
         - name: SECRETS_MANAGER_ENDPOINT_URL
           value: >-
             https://afa20521-cd75-4864-843f-e59fd0ffd49d.us-south.secrets-manager.appdomain.cloud
@@ -258,7 +233,7 @@ spec:
           - name: LICENSE_FILE_SECRET_NAME
         steps:
           - name: write-maximo-licensefile
-            image: quay.io/openshift/origin-cli:4.12
+            image: quay.io/openshift/origin-cli:latest
             script: |
               #!/usr/bin/env bash
 
@@ -276,19 +251,21 @@ spec:
                 echo $SECRET_JSON |  grep -o '"payload":"[^"]*' | grep -o '[^"]*$' | base64 -d > $(workspaces.ws.path)/license.dat
 
               else
-                oc get secret $(params.LICENSE_FILE_SECRET_NAME) -n default -o jsonpath='{.data.licensefile}' | base64 -d | base64 -d > $(workspaces.ws.path)/license.dat
+                echo "get mas license from ocp secret"
+                oc get secret $(params.LICENSE_FILE_SECRET_NAME) -n default -o jsonpath='{.data.licensefile}' | base64 -d  > $(workspaces.ws.path)/license.dat
               fi
 
               cat $(workspaces.ws.path)/license.dat
               exit
+
     - name: get-tls-certs
       runAfter:
         - set-ibm-entitlement-key
         - get-maximo-licensefile
-      when:
-        - input: "$(params.use-letsencrypt-certs)"
-          operator: in
-          values: ["true"]
+      # when:
+      #   - input: "$(params.use-letsencrypt-certs)"
+      #     operator: in
+      #     values: ["true"]
       retries: 3
       params:
         - name: TLSCERT_SECRET_LOCATION
@@ -308,36 +285,43 @@ spec:
             image: quay.io/congxdev/ibm-pak-ubi:latest
             script: |
               ### this is the method to load certs to the mas installer
-              mkdir -p $(workspaces.ws.path)/masconfig/certs/core/
-              wget -qO - https://letsencrypt.org/certs/lets-encrypt-r3.pem > $(workspaces.ws.path)/masconfig/certs/core/ca.crt
-              oc get secret $(params.TLSCERT_SECRET_LOCATION) -n $(params.TLSCERT_SECRET_NAMESPACE) -o jsonpath="{.data['tls\.key']}" | base64 -d > $(workspaces.ws.path)/masconfig/certs/core/tls.key
-              oc get secret $(params.TLSCERT_SECRET_LOCATION) -n $(params.TLSCERT_SECRET_NAMESPACE) -o jsonpath="{.data['tls\.crt']}" | base64 -d > $(workspaces.ws.path)/masconfig/certs/core/tls.crt
-              ls $(workspaces.ws.path)/masconfig/certs/core/
-              cat $(workspaces.ws.path)/masconfig/certs/core/tls.key
-              cat $(workspaces.ws.path)/masconfig/certs/core/tls.crt
+              mkdir -p $(workspaces.ws.path)/masconfig/
 
-              # copy to app directories
-              echo "copying to app directories..."
-              mkdir -p $(workspaces.ws.path)/masconfig/certs/iot/
-              mkdir -p $(workspaces.ws.path)/masconfig/certs/manage/
-              mkdir -p $(workspaces.ws.path)/masconfig/certs/monitor/
-              mkdir -p $(workspaces.ws.path)/masconfig/certs/add/
-              mkdir -p $(workspaces.ws.path)/masconfig/certs/assist/
-              mkdir -p $(workspaces.ws.path)/masconfig/certs/optimizer/
-              mkdir -p $(workspaces.ws.path)/masconfig/certs/visualinspection/
-              mkdir -p $(workspaces.ws.path)/masconfig/certs/predict/
-              mkdir -p $(workspaces.ws.path)/masconfig/certs/aibroker/
-              cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/iot/
-              cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/manage/
-              cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/monitor/
-              cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/add/
-              cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/assist/
-              cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/optimizer/
-              cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/visualinspection/
-              cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/predict/
-              cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/aibroker/
+              if [ $(params.use-letsencrypt-certs) == "true" ]; then
+                mkdir -p $(workspaces.ws.path)/masconfig/certs/core/
 
+                wget -qO - https://letsencrypt.org/certs/lets-encrypt-r3.pem > $(workspaces.ws.path)/masconfig/certs/core/ca.crt
+                oc get secret $(params.TLSCERT_SECRET_LOCATION) -n $(params.TLSCERT_SECRET_NAMESPACE) -o jsonpath="{.data['tls\.key']}" | base64 -d > $(workspaces.ws.path)/masconfig/certs/core/tls.key
+                oc get secret $(params.TLSCERT_SECRET_LOCATION) -n $(params.TLSCERT_SECRET_NAMESPACE) -o jsonpath="{.data['tls\.crt']}" | base64 -d > $(workspaces.ws.path)/masconfig/certs/core/tls.crt
+                ls $(workspaces.ws.path)/masconfig/certs/core/
+                cat $(workspaces.ws.path)/masconfig/certs/core/tls.key
+                cat $(workspaces.ws.path)/masconfig/certs/core/tls.crt
+
+                # copy to app directories
+                echo "copying to app directories..."
+                mkdir -p $(workspaces.ws.path)/masconfig/certs/iot/
+                mkdir -p $(workspaces.ws.path)/masconfig/certs/manage/
+                mkdir -p $(workspaces.ws.path)/masconfig/certs/monitor/
+                mkdir -p $(workspaces.ws.path)/masconfig/certs/add/
+                mkdir -p $(workspaces.ws.path)/masconfig/certs/assist/
+                mkdir -p $(workspaces.ws.path)/masconfig/certs/optimizer/
+                mkdir -p $(workspaces.ws.path)/masconfig/certs/visualinspection/
+                mkdir -p $(workspaces.ws.path)/masconfig/certs/predict/
+                mkdir -p $(workspaces.ws.path)/masconfig/certs/aibroker/
+                cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/iot/
+                cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/manage/
+                cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/monitor/
+                cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/add/
+                cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/assist/
+                cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/optimizer/
+                cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/visualinspection/
+                cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/predict/
+                cp $(workspaces.ws.path)/masconfig/certs/core/* $(workspaces.ws.path)/masconfig/certs/aibroker/
+              else
+                echo "certs are not used and coping certs skipped"
+              fi
               exit
+
     - name: install-mas-core
       when:
         - input: "$(params.mas-install-core)"
@@ -347,7 +331,6 @@ spec:
       timeout: "12h"
       runAfter:
         - get-tls-certs
-        - check-container-registry
       workspaces:
         - name: ws
       params:
@@ -371,6 +354,8 @@ spec:
           value: "$(params.rwo-storageclass)"
         - name: rwx-storageclass
           value: "$(params.rwx-storageclass)"
+        - name: mas_manual_cert_mgmt
+          value: "$(params.use-letsencrypt-certs)"
       taskSpec:
         workspaces:
           - name: ws
@@ -385,6 +370,7 @@ spec:
           - name: rwo-storageclass
           - name: rwx-storageclass
           - name: mas-install-core
+          - name: mas_manual_cert_mgmt
         steps:
           - name: run-mas-cli
             image: quay.io/ibmmas/cli:latest
@@ -399,7 +385,12 @@ spec:
               export MAS_INSTANCE_ID=$(params.mas-instance-id)
               export MAS_ WORKSPACE_ID=$(params.mas-workspace-id)
               export MAS_CONFIG_DIR=$(workspaces.ws.path)/masconfig
-              export MAS_MANUAL_CERT_MGMT=True
+              if [ $(params.mas_manual_cert_mgmt) == "false" ]; then 
+                export MAS_MANUAL_CERT_MGMT=False
+              else
+                export MAS_MANUAL_CERT_MGMT=True
+              fi
+
               export MAS_CATALOG_VERSION=$(params.mas-catalog-version)
               export MAS_CHANNEL=$(params.mas-channel)
 
@@ -419,7 +410,7 @@ spec:
 
               #check ai broker public cert
               #cat ansible-devops/roles/suite_certs/defaults/main.yml
-              wget -qO - "https://raw.githubusercontent.com/zxue/ansible-devops/master/ibm/mas_devops/roles/suite_certs/defaults/main.yml" > ansible-devops/roles/suite_certs/defaults/main.yml
+              #wget -qO - "https://raw.githubusercontent.com/zxue/ansible-devops/master/ibm/mas_devops/roles/suite_certs/defaults/main.yml" > ansible-devops/roles/suite_certs/defaults/main.yml
               #cat ansible-devops/roles/suite_certs/defaults/main.yml
 
               ansible-playbook ibm.mas_devops.oneclick_core
@@ -432,7 +423,8 @@ spec:
       retries: 6
       timeout: "12h"
       runAfter:
-        - install-mas-core
+        - get-tls-certs
+        #- install-mas-core
       workspaces:
         - name: ws
       params:
@@ -512,6 +504,7 @@ spec:
 
               # Cloud Pak for Data Platform (~1 1/2 hours)
               ROLE_NAME=ibm_catalogs ansible-playbook ibm.mas_devops.run_role
+              ROLE_NAME=cert_manager ansible-playbook ibm.mas_devops.run_role
               ROLE_NAME=cp4d ansible-playbook ibm.mas_devops.run_role
     - name: install-cp4d-db2
       when:
@@ -1061,6 +1054,8 @@ spec:
           value: "$(params.uds-firstname)"
         - name: uds-lastname
           value: "$(params.uds-lastname)"
+        - name: gpu_driver_version
+          value: "$(params.gpu_driver_version)"
       taskSpec:
         workspaces:
           - name: ws
@@ -1074,6 +1069,7 @@ spec:
           - name: uds-email
           - name: uds-firstname
           - name: uds-lastname
+          - name: gpu_driver_version
         steps:
           - name: run-mas-cli
             image: quay.io/ibmmas/cli:latest
@@ -1094,7 +1090,7 @@ spec:
               export DRO_CONTACT_LASTNAME=$(params.uds-lastname)
               export DRO_NAMESPACE=ibm-dro
               
-              export GPU_DRIVER_VERSION=565.57.01
+              export GPU_DRIVER_VERSION=$(params.gpu_driver_version)
 
               ansible-playbook ibm.mas_devops.oneclick_add_visualinspection
 
@@ -1107,7 +1103,7 @@ spec:
       timeout: "12h"
       runAfter:
         - install-mas-core
-        - install-cp4d-db2
+        # - install-cp4d-db2
       workspaces:
         - name: ws
       params:
@@ -1317,6 +1313,8 @@ spec:
           value: "$(params.artifactory_username)"
         - name: artifactory_token
           value: "$(params.artifactory_token)"
+        - name: rwo-storageclass
+          value: "$(params.rwo-storageclass)"
         - name: mas_airbroker_watsonxai_apikey
           value: "$(params.mas_airbroker_watsonxai_apikey)"
         - name: mas_airbroker_watsonxai_url
@@ -1337,6 +1335,7 @@ spec:
           - name: uds-email
           - name: artifactory_username
           - name: artifactory_token
+          - name: rwo-storageclass
           - name: mas_airbroker_watsonxai_apikey
           - name: mas_airbroker_watsonxai_url
           - name: mas_airbroker_watsonxai_project_id
@@ -1355,8 +1354,10 @@ spec:
               # Update namespace "mas-inst1-aibroker" in maridb-np.yml 
 
               # download files form github repo or other location
-              export MINIO_FOLDER="https://raw.githubusercontent.com/zxue/deploy-maximo-aibroker/main/minio/"
-              export MARIADB_FOLDER="https://raw.githubusercontent.com/zxue/deploy-maximo-aibroker/main/mariadb/"
+              #export MINIO_FOLDER="https://raw.githubusercontent.com/zxue/deploy-maximo-aibroker/main/minio/"
+              #export MARIADB_FOLDER="https://raw.githubusercontent.com/zxue/deploy-maximo-aibroker/main/mariadb/"
+              export MINIO_FOLDER="https://raw.githubusercontent.com/cloud-native-toolkit/deployer-mas-cli/main/minio/"
+              export MARIADB_FOLDER="https://raw.githubusercontent.com/cloud-native-toolkit/deployer-mas-cli/main/mariadb/"
 
               wget -qO - "$MINIO_FOLDER"kustomization.yaml > $(workspaces.ws.path)/masconfig/minio/kustomization.yaml
               wget -qO - "$MINIO_FOLDER"minio.yaml > $(workspaces.ws.path)/masconfig/minio/minio.yaml
@@ -1371,6 +1372,10 @@ spec:
               wget -qO - "$MARIADB_FOLDER"mariadb-secret.yml > $(workspaces.ws.path)/masconfig/mariadb/mariadb-secret.yml
               wget -qO - "$MARIADB_FOLDER"mariadb-service.yml > $(workspaces.ws.path)/masconfig/mariadb/mariadb-service.yml
 
+              # config env variables to mariadb yml files
+              export MAS_INSTANCE_ID=$(params.mas-instance-id)
+              export MAS_AIBROKER_STORAGE_CLASS=$(params.rwo-storageclass)
+              
               # run oc command lines to create minio storage and mariadb
               cd  $(workspaces.ws.path)/masconfig
               chmod 777 $(workspaces.ws.path)/masconfig/mariadb/mariadb-deploy.sh
@@ -1384,7 +1389,7 @@ spec:
               export MAS_ICR_CPOPEN="docker-na-public.artifactory.swg-devops.com/wiotp-docker-local/cpopen"
 
               #MAS
-              export MAS_INSTANCE_ID=$(params.mas-instance-id)
+              #export MAS_INSTANCE_ID=$(params.mas-instance-id)
               export MAS_ENTITLEMENT_USERNAME=$(params.uds-email)
               export MAS_ENTITLEMENT_KEY=$(cat $(workspaces.ws.path)/ek.dat)
 
@@ -1406,7 +1411,8 @@ spec:
               export MAS_AIBROKER_WATSONXAI_PROJECT_ID=$(params.mas_airbroker_watsonxai_project_id)
               export MAS_AIBROKER_CHANNEL=$(params.mas_aibroker_channel)
 
-              # database
+              # mariadb database
+              #export MAS_AIBROKER_STORAGE_CLASS=$(params.rwo-storageclass)
               export MAS_AIBROKER_DB_HOST="mariadb-instance.mariadb.svc.cluster.local"
               export MAS_AIBROKER_DB_PORT="3306"
               export MAS_AIBROKER_DB_USER="mariadb"
