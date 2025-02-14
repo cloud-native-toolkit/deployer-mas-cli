@@ -14,27 +14,39 @@ spec:
       value: "TechZone"
     - name: uds-lastname
       value: "Developer"
+    - name: mas-catalog-version
+      value: "v9-250206-amd64"
+    - name: mas-cp4d-version
+      value: "5.0.0"  
+    - name: gpu_driver_version
+      value: "565.57.01" 
     - name: use-letsencrypt-certs
-      value: "true"
+      value: "false"
     #lets encrypt secret location and namespace
     - name: tlscert-secret
       value: "user-serving-cert-000"
     - name: tlscert-namespace
       value: "openshift-kube-apiserver"
+    # - name: tlscert-secret
+    #   value: "letsencrypt-certs"
+    # - name: tlscert-namespace
+    #   value: "openshift-ingress"
     - name: ibm-entitlement-key
-      value: "false"
+      value: "eyJ0eXAxxx"
     #mas-license-secret
     - name: license-file-secret-name
-      value: "false"
+      value: "maslicense"
     # Optionally change storageclass for ocpv
-    # - name: rwx-storageclass
-    #   value: ocs-external-storagecluster-cephfs
-    # - name: rwo-storageclass
-    #   value: ocs-external-storagecluster-cephfs
+    - name: rwx-storageclass
+      value: ocs-external-storagecluster-cephfs
+    - name: rwo-storageclass
+      value: ocs-external-storagecluster-cephfs
 
     # install MAS Core. This task may be skipped once done successfully
     - name: mas-install-core
-      value: "true"
+      value: "false"
+    - name: mas-instance-id
+      value: "inst1"
 
     # install MAS Manage, depending on MAS Core, optionally CP4D/DB2
     - name: mas-install-manage
@@ -50,9 +62,9 @@ spec:
 
     # install MAS IoT and Monitor, depending on MAS Core
     - name: mas-install-iot
-      value: "false"
+      value: "true"
     - name: mas-install-monitor
-      value: "false"
+      value: "true"
 
     # install MAS Predict, depending on MAS Core, Health, IoT and Monitor, optionally CP4D services
     - name: mas-install-predict
@@ -72,7 +84,7 @@ spec:
     - name: cpd-admin-password
       value: "xxx"
 
-    # install MAS AI Broker, depending on MAS Core, Manage, IoT and Monitor
+    # install MAS AI Broker, depending on MAS Core. Check/update sc in pvc.yml, ns in np.yml
     - name: mas-install-aibroker
       value: "false"
     - name: artifactory_username
