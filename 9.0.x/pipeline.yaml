@@ -84,7 +84,7 @@ spec:
     - name: rwo-storageclass
       description: "desired RWO storageclass"
       type: string
-      default: ocs-storagecluster-cephfs
+      default: ocs-storagecluster-ceph-rbd
     - name: "mas-catalog-version"
       description: "Maximo operator catalog version. Check https://ibm-mas.github.io/cli/catalogs/"
       type: string
@@ -507,8 +507,10 @@ spec:
               ROLE_NAME=cert_manager ansible-playbook ibm.mas_devops.run_role
 
               # Skip CP4D unless Predict is to be installed
-              if [ $(params.install-cp4d-for-predict) == "true" ]; then
+              if [ $(params.install-cp4d-for-predict) == "true" ] || [ $(params.mas-cp4d-install-cognos) == "true" ]; then
                 ROLE_NAME=cp4d ansible-playbook ibm.mas_devops.run_role
+              else
+                echo "skip cp4d installation"
               fi
 
     - name: install-cp4d-db2
@@ -963,6 +965,8 @@ spec:
           value: "$(params.rwx-storageclass)"
         - name: rwo-storageclass
           value: "$(params.rwo-storageclass)"
+        - name: install-cp4d-for-predict
+          value: "$(params.mas-install-predict)"
       taskSpec:
         workspaces:
           - name: ws
@@ -976,6 +980,7 @@ spec:
           - name: mas-cp4d-install-cognos
           - name: rwx-storageclass
           - name: rwo-storageclass
+          - name: install-cp4d-for-predict
         steps:
           - name: run-mas-cli
             image: quay.io/ibmmas/cli:latest
@@ -1014,7 +1019,8 @@ spec:
 
               export MAS_APP_SETTINGS_PERSISTENT_VOLUMES_FLAG=true
               export MAS_APP_SETTINGS_BASE_LANG=EN
-              export MAS_APP_SETTINGS_SECONDARY_LANGS='DE'
+              #installing secondary language takes extra time
+              #export MAS_APP_SETTINGS_SECONDARY_LANGS='DE'
               export MAS_APP_SETTINGS_SERVER_BUNDLES_SIZE=jms
               export MAS_MANAGE_ATTACHMENTS_PROVIDER=filestorage
               export MAS_APP_SETTINGS_ATTACHMENTS_MOUNT_PATH=/DOCLINKS
@@ -1024,11 +1030,17 @@ spec:
               export MAS_APPWS_COMPONENTS="base=latest,health=latest"
               export MAS_APP_SETTINGS_DEMODATA=$(params.install-demo-data)
 
-              export CPD_INSTALL_PLATFORM="true"
+              if [ $(params.install-cp4d-for-predict) == "true" ] || [ $(params.mas-cp4d-install-cognos) == "true" ]; then
+                export CPD_INSTALL_PLATFORM="true"
+              else
+                echo "skip cp4d installation"
+                export CPD_INSTALL_PLATFORM="false"
+              fi
+
               export CPD_INSTALL_COGNOS=$(params.mas-cp4d-install-cognos)
               export CPD_PRODUCT_VERSION=$(params.mas-cp4d-version) 
               export CPD_PRIMARY_STORAGE_CLASS=$(params.rwx-storageclass)
-              export CPD_METADATA_STORAGE_CLASS=$(params.rwx-storageclass)
+              export CPD_METADATA_STORAGE_CLASS=$(params.rwo-storageclass)
               export CPD_SERVICE_STORAGE_CLASS=$(params.rwx-storageclass)
               export CPD_SERVICE_BLOCK_STORAGE_CLASS=$(params.rwo-storageclass)
 

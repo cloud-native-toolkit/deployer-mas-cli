@@ -40,7 +40,7 @@ spec:
     - name: rwx-storageclass
       value: ocs-external-storagecluster-cephfs
     - name: rwo-storageclass
-      value: ocs-external-storagecluster-cephfs
+      value: ocs-external-storagecluster-ceph-rbd
 
     # install MAS Core. This task may be skipped once done successfully
     - name: mas-install-core
