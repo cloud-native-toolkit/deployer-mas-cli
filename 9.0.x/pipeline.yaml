@@ -167,6 +167,38 @@ spec:
             # get and echo the pipeline the mas installer created
             oc patch configmap/pipeline-output -p '{"data":{"Status":"Deployment Pipeline completed to install mas core."}}'
   tasks:
+    - name: check-container-registry
+      taskRef:
+        kind: Task
+        name: ibm-pak
+      params:
+        - name: SCRIPT
+          value: |
+            status=$(oc get configs.imageregistry.operator.openshift.io cluster -o jsonpath='{.status.conditions[?(@.type=="Available")].reason}')
+
+            TIMEOUT_SECONDS=300
+            while [[ "$status" != "Ready" ]] && [[ $SECONDS -lt $TIMEOUT_SECONDS ]]; do
+              echo "OpenShift Container Registry is not ready. Current status: $status"
+
+              # Apply the patch commands
+              oc patch config.imageregistry.operator.openshift.io/cluster --type=merge -p '{"spec":{"storage":{"emptyDir":{}}}}'
+              oc patch config.imageregistry.operator.openshift.io/cluster --type=merge -p '{"spec":{"managementState":"Managed"}}'
+
+              # Check status after a short delay to avoid overwhelming the server
+              sleep 10
+
+              # Update status 
+              status=$(oc get configs.imageregistry.operator.openshift.io cluster -o jsonpath='{.status.conditions[?(@.type=="Available")].reason}')
+            done
+
+            if [[ "$status" == "Ready" ]]; then
+              echo "OpenShift Container Registry is ready"
+              exit 0
+            else
+              echo "OpenShift Container Registry failed to become ready after $TIMEOUT_SECONDS seconds." >&2
+              exit 1
+            fi
+              
     - name: get-ibm-entitlement-key
       # when:
       #   - input: "$(params.ibm-entitlement-key)"
@@ -334,6 +366,7 @@ spec:
       timeout: "12h"
       runAfter:
         - get-tls-certs
+        - check-container-registry
       workspaces:
         - name: ws
       params:
