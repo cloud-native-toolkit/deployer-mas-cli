@@ -14,6 +14,12 @@ spec:
       value: "TechZone"
     - name: uds-lastname
       value: "Developer"
+    - name: mas-catalog-version
+      value: "v9-250206-amd64"
+    - name: mas-cp4d-version
+      value: "5.0.0"  
+    - name: gpu_driver_version
+      value: "565.57.01" 
     - name: use-letsencrypt-certs
       value: "true"
     #lets encrypt secret location and namespace
@@ -21,24 +27,30 @@ spec:
       value: "user-serving-cert-000"
     - name: tlscert-namespace
       value: "openshift-kube-apiserver"
+    # - name: tlscert-secret
+    #   value: "letsencrypt-certs"
+    # - name: tlscert-namespace
+    #   value: "openshift-ingress"
     - name: ibm-entitlement-key
       value: "false"
     #mas-license-secret
     - name: license-file-secret-name
       value: "false"
     # Optionally change storageclass for ocpv
-    # - name: rwx-storageclass
-    #   value: ocs-external-storagecluster-cephfs
-    # - name: rwo-storageclass
-    #   value: ocs-external-storagecluster-cephfs
+    - name: rwx-storageclass
+      value: ocs-external-storagecluster-cephfs
+    - name: rwo-storageclass
+      value: ocs-external-storagecluster-ceph-rbd
 
     # install MAS Core. This task may be skipped once done successfully
     - name: mas-install-core
       value: "true"
+    - name: mas-instance-id
+      value: "inst1"
 
     # install MAS Manage, depending on MAS Core, optionally CP4D/DB2
     - name: mas-install-manage
-      value: "false"
+      value: "true"
     - name: mas-install-demo-data
       value: "true"
     - name: mas-cp4d-install-cognos
@@ -72,7 +84,7 @@ spec:
     - name: cpd-admin-password
       value: "xxx"
 
-    # install MAS AI Broker, depending on MAS Core, Manage, IoT and Monitor
+    # install MAS AI Broker, depending on MAS Core. Check/update sc in pvc.yml, ns in np.yml
     - name: mas-install-aibroker
       value: "false"
     - name: artifactory_username
