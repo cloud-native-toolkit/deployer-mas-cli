@@ -1,0 +1,34 @@
+{
+    "deployer": {
+        "package": "deployer-mas-9.0-v3",
+        "params": {
+            "rwx-storageclass": "ocs-external-storagecluster-cephfs",
+            "rwo-storageclass": "ocs-external-storagecluster-cephfs",
+            "use-letsencrypt-certs": "true",
+            "mas-catalog-version": "v9-250501-amd64",
+            "tlscert-secret": "user-serving-cert-000",
+            "tlscert-namespace": "openshift-kube-apiserver",
+            "mas-install-core": "true",
+            "mas-install-manage": "true",
+            "mas-install-demo-data": "true",
+            "mas-install-optimizer": "true",
+            "mas-appws-components": "base=latest,health=latest,spatial=latest,strategize=latest,utilities=latest,transportation=latest,serviceprovider=latest,hse=latest"
+        }
+    },
+    "certs": {
+        "SAN": [
+            "*.inst1.apps",
+            "*.home.inst1.apps",
+            "*.iot.inst1.apps",
+            "*.messaging.iot.inst1.apps",
+            "*.edgeconfig.iot.inst1.apps",
+            "*.edgeconfigapi.iot.inst1.apps",
+            "*.monitor.inst1.apps",
+            "*.api.monitor.inst1.apps",
+            "*.manage.inst1.apps",
+            "*.health.inst1.apps",
+            "*.optimizer.inst1.apps",
+            "*.api.optimizer.inst1.apps"
+        ]  
+    }
+}
